@@ -216,13 +216,35 @@ jobs:
           fi
 
       - name: Build Marauder optimized probe for ${{ matrix.board.name }}
-        uses: ArminJo/arduino-test-compile@v3.3.0
-        with:
-          sketch-names: esp32_marauder.ino
-          arduino-board-fqbn: ${{ matrix.board.fbqn }}
-          extra-arduino-cli-args: "--warnings none --build-property compiler.c.extra_flags='-fmerge-constants -fmerge-all-constants -fno-unwind-tables -fno-asynchronous-unwind-tables' --build-property compiler.cpp.extra_flags='-D${{ matrix.board.flag }} -fno-exceptions -fno-threadsafe-statics -fmerge-constants -fmerge-all-constants -fno-unwind-tables -fno-asynchronous-unwind-tables'"
-          arduino-platform: esp32:esp32@${{ matrix.board.idf_ver }}
-          platform-url: https://github.com/espressif/arduino-esp32/releases/download/${{ matrix.board.idf_ver }}/package_esp32_dev_index.json
+        shell: bash
+        run: |
+          set -o pipefail
+          BUILD_DIR=./esp32_marauder/build/esp32.esp32.${{ matrix.board.build_dir }}
+          mkdir -p "$BUILD_DIR"
+
+          arduino-cli compile esp32_marauder \
+            --fqbn '${{ matrix.board.fbqn }}' \
+            --warnings none \
+            --export-binaries \
+            --build-path "$BUILD_DIR" \
+            --library CustomESP32Ping \
+            --library CustomAsyncTCP \
+            --library CustomMicroNMEA \
+            --library CustomESPAsyncWebServer \
+            --library CustomTFT_eSPI \
+            --library CustomXPT2046_Touchscreen \
+            --library Customlv_arduino \
+            --library CustomJPEGDecoder \
+            --library CustomNimBLE-Arduino \
+            --library CustomAdafruit_NeoPixel \
+            --library CustomArduinoJson \
+            --library CustomLinkedList \
+            --library CustomEspSoftwareSerial \
+            --library CustomAdafruit_BusIO \
+            --library CustomAdafruit_MAX1704X \
+            --library CustomAdafruit_TCA8418 \
+            --build-property 'compiler.c.extra_flags=-fmerge-constants -fmerge-all-constants -fno-unwind-tables -fno-asynchronous-unwind-tables' \
+            --build-property 'compiler.cpp.extra_flags=-D${{ matrix.board.flag }} -fno-exceptions -fno-threadsafe-statics -fmerge-constants -fmerge-all-constants -fno-unwind-tables -fno-asynchronous-unwind-tables'
 
       - name: Prepare optimized probe artifact summary
         if: always()
