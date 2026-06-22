@@ -1,0 +1,117 @@
+name: Build v6.1 Optimized
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/build-v6_1-optimized.yml'
+      - 'esp32_marauder/**'
+      - 'libraries/**'
+      - 'User_Setup*.h'
+  pull_request:
+    paths:
+      - '.github/workflows/build-v6_1-optimized.yml'
+      - 'esp32_marauder/**'
+      - 'libraries/**'
+      - 'User_Setup*.h'
+
+jobs:
+  build-v6-1-optimized:
+    name: Build Marauder v6.1 optimized
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Install ESP32 core 2.0.17
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@2.0.17
+          arduino-cli core list
+
+      - name: Install Arduino libraries
+        run: |
+          arduino-cli lib update-index
+          arduino-cli lib install \
+            "TFT_eSPI" \
+            "JPEGDecoder" \
+            "LinkedList" \
+            "lv_arduino" \
+            "ArduinoJson" \
+            "NimBLE-Arduino" \
+            "Adafruit NeoPixel" \
+            "MicroNMEA" \
+            "EspSoftwareSerial" \
+            "XPT2046_Touchscreen" \
+            "Adafruit MAX1704X"
+
+      - name: Install AsyncTCP
+        uses: actions/checkout@v4
+        with:
+          repository: ESP32Async/AsyncTCP
+          ref: v3.4.8
+          path: CustomAsyncTCP
+
+      - name: Install ESP32Ping
+        uses: actions/checkout@v4
+        with:
+          repository: marian-craciunescu/ESP32Ping
+          ref: 1.6
+          path: CustomESP32Ping
+
+      - name: Install ESPAsyncWebServer
+        uses: actions/checkout@v4
+        with:
+          repository: ESP32Async/ESPAsyncWebServer
+          ref: v3.8.1
+          path: CustomESPAsyncWebServer
+
+      - name: Install Adafruit TCA8418 from repo
+        run: cp -r libraries/Adafruit_TCA8418 CustomAdafruit_TCA8418
+
+      - name: Configure TFT_eSPI
+        run: cp User_Setup.h "$HOME/Arduino/libraries/TFT_eSPI/User_Setup.h"
+
+      - name: Build optimized v6.1 binary
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p build/v6_1_optimized
+          arduino-cli compile esp32_marauder \
+            --fqbn 'esp32:esp32:d32_pro:FlashFreq=80,UploadSpeed=921600,PartitionScheme=min_spiffs,DebugLevel=none,PSRAM=disabled' \
+            --warnings none \
+            --export-binaries \
+            --build-path build/v6_1_optimized \
+            --library CustomAsyncTCP \
+            --library CustomESP32Ping \
+            --library CustomESPAsyncWebServer \
+            --library CustomAdafruit_TCA8418 \
+            --build-property 'compiler.c.extra_flags=-fcommon' \
+            --build-property 'compiler.cpp.extra_flags=-DMARAUDER_V6_1 -DWIFI_AUTH_WPA3_ENTERPRISE=WIFI_AUTH_WPA3_ENT_192 -fcommon -fno-exceptions -fno-threadsafe-statics -fmerge-constants -fmerge-all-constants -fno-unwind-tables -fno-asynchronous-unwind-tables' \
+            --build-property 'compiler.c.elf.extra_flags=-Wl,--allow-multiple-definition' \
+            2>&1 | tee build-v6_1-optimized.log
+
+      - name: Show build outputs
+        if: always()
+        run: find build/v6_1_optimized -maxdepth 1 -type f \( -name '*.bin' -o -name '*.elf' -o -name '*.map' \) -print -exec ls -lh {} \;
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: esp32-marauder-v6_1-optimized
+          path: |
+            build/v6_1_optimized/*.bin
+            build/v6_1_optimized/*.elf
+            build/v6_1_optimized/*.map
+            build-v6_1-optimized.log
+          if-no-files-found: error
+          retention-days: 14
