@@ -3538,9 +3538,10 @@ void MenuFunctions::setupSDFileList(bool update, bool wdg_upload) {
         if (!file_name.endsWith(".log") || (file_name.indexOf("wardrive_") < 0))
           sd_obj.sd_files->remove(x);
       }
+      return;
     }
-    else
   #endif
+
   if (!update)
     sd_obj.listDirToLinkedList(sd_obj.sd_files);
   else
@@ -3558,11 +3559,10 @@ void MenuFunctions::buildSDFileMenu(bool update, bool wdg_upload) {
     if (wdg_upload)
       sdDeleteMenu.name = "WDG Files";
     else
+      sdDeleteMenu.name = update ? "Bin Files" : "SD Files";
+  #else
+    sdDeleteMenu.name = update ? "Bin Files" : "SD Files";
   #endif
-  if (!update)
-    sdDeleteMenu.name = "SD Files";
-  else
-    sdDeleteMenu.name = "Bin Files";
 
   this->addNodes(&sdDeleteMenu, text09, TFTLIGHTGREY, 0, [this]() {
     this->changeMenu(sdDeleteMenu.parentMenu, true);
@@ -3602,9 +3602,10 @@ void MenuFunctions::buildSDFileMenu(bool update, bool wdg_upload) {
           this->changeMenu(&wdgResultMenu, true);
         });
       }
+      return;
     }
-    else
   #endif
+
   if (!update) {
     for (int x = 0; x < sd_obj.sd_files->size(); x++) {
       this->addNodes(&sdDeleteMenu, sd_obj.sd_files->get(x).c_str(), TFTCYAN, SD_UPDATE, [this, x]() {
